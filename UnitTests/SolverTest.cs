@@ -220,12 +220,20 @@ namespace UnitTests
             Matrix<double> LHS;
             int columns = numVariables + surplusVarCount * 2 + slackVarCount;
             int rows = constraints.Count;
+            if (surplusVarCount != 0)
+            {
+                rows += 1;
+            }
+            
             LHS = Matrix<double>.Build.Dense(rows, columns, 0);
             // each loop adds new row
             for (int i = 0; i < constraints.Count; i++)
             {
                 // for the Z column
-                System.Diagnostics.Debug.Write("0\t");
+                if (surplusVarCount != 0)
+                {
+                    System.Diagnostics.Debug.Write("0\t");
+                }
                 for (int j = 0; j < constraints[i].Coefficients.Length; j++)
                 {
                     System.Diagnostics.Debug.Write(constraints[i].Coefficients[j] + "\t");
@@ -238,11 +246,13 @@ namespace UnitTests
                     {
                         if (constraints[i].Relationship.Equals(Relationship.GreaterThanOrEquals))
                         {
-                            System.Diagnostics.Debug.Write("-1\t");                          
+                            System.Diagnostics.Debug.Write("-1\t");
+                            LHS[i, k-1 + numVariables] = -1;
                         }
                         else if (constraints[i].Relationship.Equals(Relationship.LessThanOrEquals))
                         {
-                            System.Diagnostics.Debug.Write("1\t");                   
+                            System.Diagnostics.Debug.Write("1\t");
+                            LHS[i, k-1 + numVariables] = 1;
                         }else // if relationship is equal
                         {
                             System.Diagnostics.Debug.Write("0\t");
@@ -258,6 +268,7 @@ namespace UnitTests
                     if (k == aCount)
                     {
                         System.Diagnostics.Debug.Write("1\t");
+                        LHS[i, k-1 + numVariables + surplusVarCount + slackVarCount] = 1;
                         rowsWithA.Add(i);
                         correspondingSlackVariable.Add(sCount);
                     }
@@ -277,59 +288,83 @@ namespace UnitTests
                 }
                 System.Diagnostics.Debug.WriteLine("\t" + constraints[i].Value);
             }
-            // if there is a Z row
+            
+            // build the objective Row
+            Matrix<double> objectiveRow = Matrix<double>.Build.Dense(1, columns, 0);            
+            
             if (surplusVarCount != 0)
             {
                 System.Diagnostics.Debug.Write("1\t");
                 for (int i = 0; i < goal.Coefficients.Length; i++)
                 {
-                    System.Diagnostics.Debug.Write(goal.Coefficients[i]/-1 + "\t");
+                    System.Diagnostics.Debug.Write(goal.Coefficients[i] / -1 + "\t");
+                    LHS[constraints.Count, i] = goal.Coefficients[i] / -1;
                 }
                 for (int i = 0; i < (surplusVarCount * 2) + slackVarCount; i++)
                 {
                     System.Diagnostics.Debug.Write("0\t");
                 }
-                System.Diagnostics.Debug.WriteLine("\t0\t");
-            }
+                System.Diagnostics.Debug.WriteLine("\t0\t");                        
+                double[] totalCoefficient = new double[numVariables];
 
-            double[] totalCoefficient = new double[numVariables];
-            
-            for (int i = 0; i < rowsWithA.Count; i++)
-            {
-                for (int j = 0; j < numVariables; j++)
+                for (int i = 0; i < rowsWithA.Count; i++)
                 {
-                    totalCoefficient[j] += constraints[rowsWithA[i]].Coefficients[j];
+                    for (int j = 0; j < numVariables; j++)
+                    {
+                        totalCoefficient[j] += constraints[rowsWithA[i]].Coefficients[j];
+                    }
                 }
-            }
-            System.Diagnostics.Debug.WriteLine("");
-            // for the w matrix
-            if (surplusVarCount != 0)
-            {
+                System.Diagnostics.Debug.WriteLine("");
+                // for the w matrix
                 System.Diagnostics.Debug.Write("0\t");
-            }
-            for (int i = 0; i < numVariables; i++)
-            {
-                System.Diagnostics.Debug.Write(totalCoefficient[i] + "\t");
-            }
-            //loops through each S variable column
-            for (int i = 1; i <= surplusVarCount + slackVarCount; i++)
-            {
-                // if there is a slack variable
-                if (correspondingSlackVariable.Contains(i))
+
+                for (int i = 0; i < numVariables; i++)
                 {
-                    System.Diagnostics.Debug.Write("-1\t");
+                    System.Diagnostics.Debug.Write(totalCoefficient[i] + "\t");
+                    objectiveRow[0, i] = totalCoefficient[i];
                 }
-                else
+                //loops through each S variable column
+                for (int i = 1; i <= surplusVarCount + slackVarCount; i++)
+                {
+                    // if there is a slack variable
+                    if (correspondingSlackVariable.Contains(i))
+                    {
+                        System.Diagnostics.Debug.Write("-1\t");
+                        objectiveRow[0, i - 1 + numVariables] = -1;
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.Write("0\t");
+                    }
+                }
+                for (int i = 0; i < surplusVarCount; i++)
                 {
                     System.Diagnostics.Debug.Write("0\t");
                 }
             }
-            for (int i = 0; i < surplusVarCount; i++)
+            else
             {
-                System.Diagnostics.Debug.Write("0\t");
+                for (int i = 0; i < goal.Coefficients.Length; i++)
+                {
+                    System.Diagnostics.Debug.Write(goal.Coefficients[i] / -1 + "\t");
+                    objectiveRow[0, i] = goal.Coefficients[i] / -1;
+                }
+                for (int i = 0; i < (surplusVarCount * 2) + slackVarCount; i++)
+                {
+                    System.Diagnostics.Debug.Write("0\t");
+                }
+            }
+            // Build the RHS matrix
+            Matrix<double> RHS = Matrix<double>.Build.Dense(constraints.Count, 1, 0);
+            for (int i = 0; i < constraints.Count; i++)
+            {
+                RHS[i, 0] = constraints[i].Value;
             }
             System.Diagnostics.Debug.WriteLine("\t Objective Row");
-            
+            System.Diagnostics.Debug.WriteLine(LHS.ToString());
+            System.Diagnostics.Debug.WriteLine(objectiveRow.ToString());
+            System.Diagnostics.Debug.WriteLine(RHS.ToString());
+
         }
 
     }
