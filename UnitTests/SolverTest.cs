@@ -3,6 +3,8 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
 using RaikesSimplexService.DataModel;
+using MathNet.Numerics.LinearAlgebra;
+using MathNet.Numerics.LinearAlgebra.Double;
 
 namespace UnitTests
 {
@@ -215,16 +217,19 @@ namespace UnitTests
             int aCount = 1;
             List<int> rowsWithA = new List<int>();
             List<int> correspondingSlackVariable = new List<int>();
+            Matrix<double> LHS;
+            int columns = numVariables + surplusVarCount * 2 + slackVarCount;
+            int rows = constraints.Count;
+            LHS = Matrix<double>.Build.Dense(rows, columns, 0);
             // each loop adds new row
             for (int i = 0; i < constraints.Count; i++)
             {
-                if (surplusVarCount != 0)
-                {
-                    System.Diagnostics.Debug.Write("0\t");
-                }
+                // for the Z column
+                System.Diagnostics.Debug.Write("0\t");
                 for (int j = 0; j < constraints[i].Coefficients.Length; j++)
                 {
                     System.Diagnostics.Debug.Write(constraints[i].Coefficients[j] + "\t");
+                    LHS[i, j] = constraints[i].Coefficients[j];
                 }
                 // loops through each remaining column on the left side
                 for (int k = 1; k <= (surplusVarCount  + slackVarCount ); k++)

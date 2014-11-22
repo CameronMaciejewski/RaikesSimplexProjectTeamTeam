@@ -33,3 +33,5 @@ C:\Users\rlong_000\Documents\GitHub\RaikesSimplexProjectTeamTeam\UnitTests\bin\D
 C:\Users\rlong_000\Documents\GitHub\RaikesSimplexProjectTeamTeam\UnitTests\obj\Debug\UnitTests.csprojResolveAssemblyReference.cache
 C:\Users\rlong_000\Documents\GitHub\RaikesSimplexProjectTeamTeam\UnitTests\obj\Debug\UnitTests.dll
 C:\Users\rlong_000\Documents\GitHub\RaikesSimplexProjectTeamTeam\UnitTests\obj\Debug\UnitTests.pdb
+C:\Users\Cameron\Documents\GitHub\RaikesSimplexProjectTeamTeam\UnitTests\bin\Debug\MathNet.Numerics.dll
+C:\Users\Cameron\Documents\GitHub\RaikesSimplexProjectTeamTeam\UnitTests\bin\Debug\MathNet.Numerics.xml
