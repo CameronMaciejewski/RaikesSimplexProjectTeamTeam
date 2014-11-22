@@ -26,3 +26,10 @@ C:\Users\Cameron\Documents\GitHub\RaikesSimplexProjectTeamTeam\UnitTests\bin\Deb
 C:\Users\Cameron\Documents\GitHub\RaikesSimplexProjectTeamTeam\UnitTests\obj\Debug\UnitTests.csprojResolveAssemblyReference.cache
 C:\Users\Cameron\Documents\GitHub\RaikesSimplexProjectTeamTeam\UnitTests\obj\Debug\UnitTests.dll
 C:\Users\Cameron\Documents\GitHub\RaikesSimplexProjectTeamTeam\UnitTests\obj\Debug\UnitTests.pdb
+C:\Users\rlong_000\Documents\GitHub\RaikesSimplexProjectTeamTeam\UnitTests\bin\Debug\UnitTests.dll
+C:\Users\rlong_000\Documents\GitHub\RaikesSimplexProjectTeamTeam\UnitTests\bin\Debug\UnitTests.pdb
+C:\Users\rlong_000\Documents\GitHub\RaikesSimplexProjectTeamTeam\UnitTests\bin\Debug\RaikesSimplexService.dll
+C:\Users\rlong_000\Documents\GitHub\RaikesSimplexProjectTeamTeam\UnitTests\bin\Debug\RaikesSimplexService.pdb
+C:\Users\rlong_000\Documents\GitHub\RaikesSimplexProjectTeamTeam\UnitTests\obj\Debug\UnitTests.csprojResolveAssemblyReference.cache
+C:\Users\rlong_000\Documents\GitHub\RaikesSimplexProjectTeamTeam\UnitTests\obj\Debug\UnitTests.dll
+C:\Users\rlong_000\Documents\GitHub\RaikesSimplexProjectTeamTeam\UnitTests\obj\Debug\UnitTests.pdb

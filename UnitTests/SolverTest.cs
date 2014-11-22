@@ -84,6 +84,7 @@ namespace UnitTests
             {
                 Coefficients = new double[2] { 12, 12 },
                 Relationship = Relationship.GreaterThanOrEquals,
+                //poop
                 Value = 36
             };
 
