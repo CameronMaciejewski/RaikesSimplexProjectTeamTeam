@@ -355,7 +355,14 @@ namespace UnitTests
                 }
             }
             // Build the RHS matrix
-            Matrix<double> RHS = Matrix<double>.Build.Dense(constraints.Count, 1, 0);
+            Matrix<double> RHS;
+            if (surplusVarCount!= 0){
+               RHS = Matrix<double>.Build.Dense(constraints.Count + 1, 1, 0);
+            }
+            else
+            {
+                RHS = Matrix<double>.Build.Dense(constraints.Count, 1, 0);
+            }
             for (int i = 0; i < constraints.Count; i++)
             {
                 RHS[i, 0] = constraints[i].Value;
