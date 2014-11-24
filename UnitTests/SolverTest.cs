@@ -78,7 +78,7 @@ namespace UnitTests
             var lc1 = new LinearConstraint()
             {
                 Coefficients = new double[2] { 8, 12 },
-                Relationship = Relationship.GreaterThanOrEquals,
+                Relationship = Relationship.LessThanOrEquals,
                 Value = 24
             };
 
@@ -93,14 +93,14 @@ namespace UnitTests
             var lc3 = new LinearConstraint()
             {
                 Coefficients = new double[2] { 2, 1 },
-                Relationship = Relationship.GreaterThanOrEquals,
+                Relationship = Relationship.LessThanOrEquals,
                 Value = 4
             };
 
             var lc4 = new LinearConstraint()
             {
                 Coefficients = new double[2] { 1, 1 },
-                Relationship = Relationship.LessThanOrEquals,
+                Relationship = Relationship.GreaterThanOrEquals,
                 Value = 5
             };
 
@@ -217,7 +217,9 @@ namespace UnitTests
             int aCount = 1;
             List<int> rowsWithA = new List<int>();
             List<int> correspondingSlackVariable = new List<int>();
+            Matrix<double> BMatrix = Matrix<double>.Build.Dense(surplusVarCount + slackVarCount, surplusVarCount + slackVarCount, 0);
             Matrix<double> LHS;
+            int bMatrixBuildCounter = 0;
             int columns = numVariables + surplusVarCount * 2 + slackVarCount;
             int rows = constraints.Count;
             if (surplusVarCount != 0)
@@ -253,6 +255,8 @@ namespace UnitTests
                         {
                             System.Diagnostics.Debug.Write("1\t");
                             LHS[i, k-1 + numVariables] = 1;
+                            BMatrix[i, bMatrixBuildCounter] = 1;
+                            bMatrixBuildCounter += 1;
                         }else // if relationship is equal
                         {
                             System.Diagnostics.Debug.Write("0\t");
@@ -263,12 +267,14 @@ namespace UnitTests
                         System.Diagnostics.Debug.Write("0\t");
                     }
                 }
+                
                 for (int k = 1; k <= surplusVarCount; k++)
                 {               
-                    if (k == aCount)
+                    if (k == aCount && constraints[i].Relationship.Equals(Relationship.GreaterThanOrEquals))
                     {
                         System.Diagnostics.Debug.Write("1\t");
                         LHS[i, k-1 + numVariables + surplusVarCount + slackVarCount] = 1;
+                        BMatrix[ i, slackVarCount + k -1] = 1;
                         rowsWithA.Add(i);
                         correspondingSlackVariable.Add(sCount);
                     }
@@ -367,10 +373,12 @@ namespace UnitTests
             {
                 RHS[i, 0] = constraints[i].Value;
             }
+
             System.Diagnostics.Debug.WriteLine("\t Objective Row");
             System.Diagnostics.Debug.WriteLine(LHS.ToString());
             System.Diagnostics.Debug.WriteLine(objectiveRow.ToString());
             System.Diagnostics.Debug.WriteLine(RHS.ToString());
+            System.Diagnostics.Debug.WriteLine(BMatrix.ToString());
 
         }
 
