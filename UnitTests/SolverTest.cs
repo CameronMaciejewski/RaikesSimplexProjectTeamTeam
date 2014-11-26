@@ -218,8 +218,10 @@ namespace UnitTests
             List<int> rowsWithA = new List<int>();
             List<int> correspondingSlackVariable = new List<int>();
             Matrix<double> BMatrix = Matrix<double>.Build.Dense(surplusVarCount + slackVarCount, surplusVarCount + slackVarCount, 0);
+            Matrix<double> nahBMatrix = Matrix<double>.Build.Dense(slackVarCount + surplusVarCount, surplusVarCount + numVariables, 0);
             Matrix<double> LHS;
             int bMatrixBuildCounter = 0;
+            int nahbMatrixBuildCounter = numVariables;
             int columns = numVariables + surplusVarCount * 2 + slackVarCount;
             int rows = constraints.Count;
             if (surplusVarCount != 0)
@@ -240,6 +242,7 @@ namespace UnitTests
                 {
                     System.Diagnostics.Debug.Write(constraints[i].Coefficients[j] + "\t");
                     LHS[i, j] = constraints[i].Coefficients[j];
+                    nahBMatrix[i, j] = constraints[i].Coefficients[j];
                 }
                 // loops through each remaining column on the left side
                 for (int k = 1; k <= (surplusVarCount  + slackVarCount ); k++)
@@ -250,6 +253,8 @@ namespace UnitTests
                         {
                             System.Diagnostics.Debug.Write("-1\t");
                             LHS[i, k-1 + numVariables] = -1;
+                            nahBMatrix[i, nahbMatrixBuildCounter] = -1;
+                            nahbMatrixBuildCounter += 1;
                         }
                         else if (constraints[i].Relationship.Equals(Relationship.LessThanOrEquals))
                         {
@@ -379,8 +384,13 @@ namespace UnitTests
             System.Diagnostics.Debug.WriteLine(objectiveRow.ToString());
             System.Diagnostics.Debug.WriteLine(RHS.ToString());
             System.Diagnostics.Debug.WriteLine(BMatrix.ToString());
+            System.Diagnostics.Debug.WriteLine(nahBMatrix.ToString());
+
+            Matrix<double> Cb = Matrix<double>.Build.Dense(1, surplusVarCount + slackVarCount);
+            Matrix<double>[] PMatrices = new Matrix<double>[numVariables + surplusVarCount];
+            Matrix<double>[] PPrimeMatrices = new Matrix<double>[numVariables + surplusVarCount];
+            double[] cPrime = new double[numVariables + surplusVarCount];
 
         }
-
     }
 }
