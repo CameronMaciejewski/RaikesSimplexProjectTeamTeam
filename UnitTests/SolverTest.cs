@@ -73,44 +73,37 @@ namespace UnitTests
         public void ExampleSolveTest()
         {
             #region Arrange
-            var target = new Solver();            
+            var target = new Solver();
 
             var lc1 = new LinearConstraint()
             {
-                Coefficients = new double[2] { 8, 12 },
+                Coefficients = new double[2] { 1, 1 },
                 Relationship = Relationship.LessThanOrEquals,
-                Value = 24
+                Value = 1
             };
 
             var lc2 = new LinearConstraint()
             {
-                Coefficients = new double[2] { 12, 12 },
+                Coefficients = new double[2] { 2, -1 },
                 Relationship = Relationship.GreaterThanOrEquals,
                 //poop
-                Value = 36
+                Value = 1
             };
 
             var lc3 = new LinearConstraint()
             {
-                Coefficients = new double[2] { 2, 1 },
+                Coefficients = new double[2] { 0, 3 },
                 Relationship = Relationship.LessThanOrEquals,
-                Value = 4
+                Value = 2
             };
 
-            var lc4 = new LinearConstraint()
+            var constraints = new List<LinearConstraint>() { lc1, lc2, lc3 };
+
+            var goal = new Goal()
             {
-                Coefficients = new double[2] { 1, 1 },
-                Relationship = Relationship.GreaterThanOrEquals,
-                Value = 5
-            };
-
-            var constraints = new List<LinearConstraint>() {lc1, lc2, lc3, lc4};
-
-            var goal = new Goal() 
-            { 
-                Coefficients = new double[2] { 0.2, 0.3 },
+                Coefficients = new double[2] { 6, 3 },
                 ConstantTerm = 0
-            };           
+            };        
 
             var model = new Model()
             {
@@ -217,16 +210,24 @@ namespace UnitTests
             int aCount = 1;
             List<int> rowsWithA = new List<int>();
             List<int> correspondingSlackVariable = new List<int>();
-            Matrix<double> BMatrix = Matrix<double>.Build.Dense(surplusVarCount + slackVarCount, surplusVarCount + slackVarCount, 0);
-            Matrix<double> nahBMatrix = Matrix<double>.Build.Dense(slackVarCount + surplusVarCount, surplusVarCount + numVariables, 0);
+            Matrix<double> BMatrix;
+            Matrix<double> nahBMatrix;
             Matrix<double> LHS;
             int bMatrixBuildCounter = 0;
             int nahbMatrixBuildCounter = numVariables;
-            int columns = numVariables + surplusVarCount * 2 + slackVarCount;
+            int columns = numVariables + surplusVarCount * 2 + slackVarCount + 1;
             int rows = constraints.Count;
             if (surplusVarCount != 0)
             {
                 rows += 1;
+                BMatrix = Matrix<double>.Build.Dense(surplusVarCount + slackVarCount + 1, surplusVarCount + slackVarCount + 1, 0);
+                BMatrix[surplusVarCount + slackVarCount, 0] = 1;
+                nahBMatrix = Matrix<double>.Build.Dense(slackVarCount + surplusVarCount + 1, surplusVarCount + numVariables, 0);
+            }
+            else
+            {
+                BMatrix = Matrix<double>.Build.Dense(surplusVarCount + slackVarCount, surplusVarCount + slackVarCount, 0);
+                nahBMatrix = Matrix<double>.Build.Dense(slackVarCount + surplusVarCount, surplusVarCount + numVariables, 0);
             }
             
             LHS = Matrix<double>.Build.Dense(rows, columns, 0);
@@ -237,11 +238,12 @@ namespace UnitTests
                 if (surplusVarCount != 0)
                 {
                     System.Diagnostics.Debug.Write("0\t");
+                    LHS[i, 0] = 0; 
                 }
                 for (int j = 0; j < constraints[i].Coefficients.Length; j++)
                 {
                     System.Diagnostics.Debug.Write(constraints[i].Coefficients[j] + "\t");
-                    LHS[i, j] = constraints[i].Coefficients[j];
+                    LHS[i, j + 1] = constraints[i].Coefficients[j];
                     nahBMatrix[i, j] = constraints[i].Coefficients[j];
                 }
                 // loops through each remaining column on the left side
@@ -252,15 +254,15 @@ namespace UnitTests
                         if (constraints[i].Relationship.Equals(Relationship.GreaterThanOrEquals))
                         {
                             System.Diagnostics.Debug.Write("-1\t");
-                            LHS[i, k-1 + numVariables] = -1;
+                            LHS[i, k + numVariables] = -1;
                             nahBMatrix[i, nahbMatrixBuildCounter] = -1;
                             nahbMatrixBuildCounter += 1;
                         }
                         else if (constraints[i].Relationship.Equals(Relationship.LessThanOrEquals))
                         {
                             System.Diagnostics.Debug.Write("1\t");
-                            LHS[i, k-1 + numVariables] = 1;
-                            BMatrix[i, bMatrixBuildCounter] = 1;
+                            LHS[i, k + numVariables] = 1;
+                            BMatrix[i, bMatrixBuildCounter + 1] = 1;
                             bMatrixBuildCounter += 1;
                         }else // if relationship is equal
                         {
@@ -278,8 +280,8 @@ namespace UnitTests
                     if (k == aCount && constraints[i].Relationship.Equals(Relationship.GreaterThanOrEquals))
                     {
                         System.Diagnostics.Debug.Write("1\t");
-                        LHS[i, k-1 + numVariables + surplusVarCount + slackVarCount] = 1;
-                        BMatrix[ i, slackVarCount + k -1] = 1;
+                        LHS[i, k + numVariables + surplusVarCount + slackVarCount] = 1;
+                        BMatrix[ i, slackVarCount + k] = 1;
                         rowsWithA.Add(i);
                         correspondingSlackVariable.Add(sCount);
                     }
@@ -306,10 +308,12 @@ namespace UnitTests
             if (surplusVarCount != 0)
             {
                 System.Diagnostics.Debug.Write("1\t");
+                LHS[constraints.Count, 0] = 1;
                 for (int i = 0; i < goal.Coefficients.Length; i++)
                 {
                     System.Diagnostics.Debug.Write(goal.Coefficients[i] / -1 + "\t");
-                    LHS[constraints.Count, i] = goal.Coefficients[i] / -1;
+                    LHS[constraints.Count, i + 1] = goal.Coefficients[i] / -1;
+                    nahBMatrix[constraints.Count, i] = goal.Coefficients[i] / -1;
                 }
                 for (int i = 0; i < (surplusVarCount * 2) + slackVarCount; i++)
                 {
@@ -328,11 +332,12 @@ namespace UnitTests
                 System.Diagnostics.Debug.WriteLine("");
                 // for the w matrix
                 System.Diagnostics.Debug.Write("0\t");
+                objectiveRow[0, 0] = 0;
 
                 for (int i = 0; i < numVariables; i++)
                 {
                     System.Diagnostics.Debug.Write(totalCoefficient[i] + "\t");
-                    objectiveRow[0, i] = totalCoefficient[i];
+                    objectiveRow[0, i+1] = totalCoefficient[i];
                 }
                 //loops through each S variable column
                 for (int i = 1; i <= surplusVarCount + slackVarCount; i++)
@@ -386,10 +391,19 @@ namespace UnitTests
             System.Diagnostics.Debug.WriteLine(BMatrix.ToString());
             System.Diagnostics.Debug.WriteLine(nahBMatrix.ToString());
 
+            Matrix<double> Binv = BMatrix.Inverse();
+            System.Diagnostics.Debug.WriteLine(Binv.ToString());
             Matrix<double> Cb = Matrix<double>.Build.Dense(1, surplusVarCount + slackVarCount);
             Matrix<double>[] PMatrices = new Matrix<double>[numVariables + surplusVarCount];
             Matrix<double>[] PPrimeMatrices = new Matrix<double>[numVariables + surplusVarCount];
             double[] cPrime = new double[numVariables + surplusVarCount];
+
+            for (int i = 0; i < nahBMatrix.ColumnCount; i++)
+            {
+                PMatrices[i] = nahBMatrix.Column(i).ToColumnMatrix();
+                PPrimeMatrices[i] = Binv * PMatrices[i];
+                System.Diagnostics.Debug.WriteLine(PPrimeMatrices[i].ToString());
+            }
 
         }
     }
