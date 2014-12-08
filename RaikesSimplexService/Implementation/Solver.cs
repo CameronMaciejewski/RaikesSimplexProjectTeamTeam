@@ -33,8 +33,47 @@ namespace RaikesSimplexService.InsertTeamNameHere
         public Solution Solve(Model model)
         {
             generateInitialMatrices(model);
-            DoPhase1();
+            generateNewIndices();
+            if (surplusVarCount != 0)
+            {
+                do
+                {
+                    Do2Phase();
+                    printAllTheThings();
+                } while (cPrimesAreNegative());
+                simplifyLHS();
+            }
+            Console.WriteLine("LHS Matrix After 2 phase stuff");
+            Console.WriteLine(LHS.ToString());
+            generate1PhaseMatrices();
+            generateNewIndices();
+            do
+            {
+                Do1Phase();
+            } while (cPrimesAreNegative());
+            
             throw new NotImplementedException();
+        }
+        private void printAllTheThings()
+        {
+            Console.WriteLine("LHS Matrix");
+            Console.WriteLine(LHS.ToString());
+            Console.WriteLine("Objective Row");
+            Console.WriteLine(objectiveRow.ToString());
+            Console.WriteLine("RHS Matrix");
+            Console.WriteLine(RHS.ToString());
+            Console.WriteLine("B Matrix");
+            Console.WriteLine(BMatrix.ToString());
+            Console.WriteLine("NAHB Matrix");
+            Console.WriteLine(nahBMatrix.ToString());
+            Console.WriteLine("CB Matrix");
+            Console.WriteLine(Cb.ToString());
+            Console.WriteLine("CPrime Array");
+            for (int i = 0; i < cPrime.Length; i++)
+            {
+                Console.Write(cPrime[i] + "\t");
+            }
+            Console.WriteLine();
         }
         private void generateInitialMatrices(Model model)
         {
@@ -249,13 +288,30 @@ namespace RaikesSimplexService.InsertTeamNameHere
             }
 
             Console.WriteLine("\t Objective Row");
-            Console.WriteLine(LHS.ToString());
-            Console.WriteLine(objectiveRow.ToString());
-            Console.WriteLine(RHS.ToString());
-            Console.WriteLine(BMatrix.ToString());
-            Console.WriteLine(nahBMatrix.ToString());
         }
-        private void DoPhase1()
+        private void generateNewIndices()
+        {
+            BasicColumnIndices = new int[BMatrix.ColumnCount];
+            nonBasicColumnIndices = new int[nahBMatrix.ColumnCount];
+            //loop through objective row
+            int basicCounter = 0;
+            int nonBasicCounter = 0;
+            for (int i = 0; i < objectiveRow.ColumnCount; i++)
+            {
+
+                if (objectiveRow[0, i] == 0)
+                {
+                    BasicColumnIndices[basicCounter] = i;
+                    basicCounter += 1;
+                }
+                else
+                {
+                    nonBasicColumnIndices[nonBasicCounter] = i;
+                    nonBasicCounter += 1;
+                }
+            }
+        }
+        private void Do2Phase()
         {
             Binv = BMatrix.Inverse();
             Console.WriteLine(Binv.ToString());
@@ -263,40 +319,33 @@ namespace RaikesSimplexService.InsertTeamNameHere
             PMatrices = new Matrix<double>[numVariables + surplusVarCount];
             PPrimeMatrices = new Matrix<double>[numVariables + surplusVarCount];
             cPrime = new double[nahBMatrix.ColumnCount];
-            BasicColumnIndices = new int[BMatrix.ColumnCount];
-            nonBasicColumnIndices = new int[nahBMatrix.ColumnCount];
-            //loop through objective row
-            int basicCounter = 0;
-            int nonBasicCounter = 0;
-            for (int i = 0; i < objectiveRow.ColumnCount; i++){
-                
-                if (objectiveRow[0,i] == 0){
-                    BasicColumnIndices[basicCounter] = i;
-                    basicCounter += 1;
-                } 
-                else
-                {
-                    nonBasicColumnIndices[nonBasicCounter] = i;
-                    nonBasicCounter += 1;
-                }
-            }
+            
             for (int i = 0; i < BMatrix.ColumnCount; i++)
             {
-
+                Cb[0, i] = objectiveRow[0, BasicColumnIndices[i]];
             }
             for (int i = 0; i < nahBMatrix.ColumnCount; i++)
             {
                 PMatrices[i] = nahBMatrix.Column(i).ToColumnMatrix();
                 PPrimeMatrices[i] = Binv * PMatrices[i];
-                Console.WriteLine(PPrimeMatrices[i].ToString());
                 cPrime[i] = objectiveRow[0, nonBasicColumnIndices[i]] - (Cb * PPrimeMatrices[i])[0,0];
             }
             RHSPrime = Binv * RHS;
-            Console.WriteLine(RHSPrime.ToString());
             int indexOfMinCPrime = Array.IndexOf(cPrime, cPrime.Min());
             int smallestRatioIndex = getSmallestRatio(RHSPrime, PPrimeMatrices[indexOfMinCPrime]);
             swapColumns(indexOfMinCPrime, smallestRatioIndex);
-            int hi = 2;
+
+        }
+        private Boolean cPrimesAreNegative()
+        {
+            for (int i = 0; i < cPrime.Length; i++)
+            {
+                if (cPrime[i] < 0)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
         private int getSmallestRatio(Matrix<double> tempRHSPrime, Matrix<double> tempPPrime)
         {
@@ -324,17 +373,110 @@ namespace RaikesSimplexService.InsertTeamNameHere
                 nahBMatrix[i, enteringNahBIndex] = temp[i, 0];
             }
             //swap LHS rows
-            for (int i = 0; i < BMatrix.RowCount; i++)
-            {
-                temp[i, 0] = LHS[i, BasicColumnIndices[leavingBIndex]];
-                LHS[i, BasicColumnIndices[leavingBIndex]] = LHS[i, nonBasicColumnIndices[enteringNahBIndex]];
-                LHS[i, nonBasicColumnIndices[enteringNahBIndex]] = temp[i, 0];
-            }
+            //for (int i = 0; i < BMatrix.RowCount; i++)
+            //{
+            //    temp[i, 0] = LHS[i, BasicColumnIndices[leavingBIndex]];
+            //    LHS[i, BasicColumnIndices[leavingBIndex]] = LHS[i, nonBasicColumnIndices[enteringNahBIndex]];
+            //    LHS[i, nonBasicColumnIndices[enteringNahBIndex]] = temp[i, 0];
+            //}
             //swap objective row columns
-            double objectiveTemp;
-            objectiveTemp = objectiveRow[0, BasicColumnIndices[leavingBIndex]];
-            objectiveRow[0, BasicColumnIndices[leavingBIndex]] = objectiveRow[0, nonBasicColumnIndices[enteringNahBIndex]];
-            objectiveRow[0, nonBasicColumnIndices[enteringNahBIndex]] = objectiveTemp;
+            //double objectiveTemp;
+            //objectiveTemp = objectiveRow[0, BasicColumnIndices[leavingBIndex]];
+            //objectiveRow[0, BasicColumnIndices[leavingBIndex]] = objectiveRow[0, nonBasicColumnIndices[enteringNahBIndex]];
+            //objectiveRow[0, nonBasicColumnIndices[enteringNahBIndex]] = objectiveTemp;
+            //swap index matrices
+            int tempIndex;
+            tempIndex = BasicColumnIndices[leavingBIndex];
+            BasicColumnIndices[leavingBIndex] = nonBasicColumnIndices[enteringNahBIndex];
+            nonBasicColumnIndices[enteringNahBIndex] = tempIndex;
+
+        }
+        private void simplifyLHS()
+        {
+            LHS = Binv * LHS;
+            int originalColumnCount = LHS.ColumnCount;
+            for (int i = originalColumnCount; i > originalColumnCount - surplusVarCount; i-- )
+            {
+                LHS = LHS.RemoveColumn(i - 1);
+            }
+            LHS = LHS.RemoveColumn(0);
+            RHS = Binv * RHS;
+            Console.WriteLine(LHS.Row(0).ToString());
+            objectiveRow = LHS.Row(0).ToRowMatrix();
+            LHS = LHS.RemoveRow(0);
+            RHS = RHS.RemoveRow(0);
+        }
+        private void Do1Phase()
+        {
+                       
+            Binv = BMatrix.Inverse();
+            Cb = Matrix<double>.Build.Dense(1, BMatrix.ColumnCount);
+            PMatrices = new Matrix<double>[nahBMatrix.ColumnCount];
+            PPrimeMatrices = new Matrix<double>[nahBMatrix.ColumnCount];
+            cPrime = new double[nahBMatrix.ColumnCount];
+
+            for (int i = 0; i < BMatrix.ColumnCount; i++)
+            {
+                Cb[0, i] = objectiveRow[0, BasicColumnIndices[i]];
+            }
+            for (int i = 0; i < nahBMatrix.ColumnCount; i++)
+            {
+                PMatrices[i] = nahBMatrix.Column(i).ToColumnMatrix();
+                PPrimeMatrices[i] = Binv * PMatrices[i];
+                cPrime[i] = objectiveRow[0, nonBasicColumnIndices[i]] - (Cb * PPrimeMatrices[i])[0, 0];
+            }
+
+            RHSPrime = Binv * RHS;
+            int indexOfMinCPrime = Array.IndexOf(cPrime, cPrime.Min());
+            int smallestRatioIndex = getSmallestRatio(RHSPrime, PPrimeMatrices[indexOfMinCPrime]);
+            swapColumns(indexOfMinCPrime, smallestRatioIndex);
+        }
+        private void generate1PhaseMatrices()
+        {
+            List<int> BMatrixColumnIndices = new List<int>();
+            List<int> nahBMatrixColumnIndices = new List<int>();
+            for (int i = 0; i < LHS.ColumnCount; i++)
+            {
+                int numOnes = 0;
+                int numZeros = 0;
+                for (int j = 0; j < LHS.RowCount; j++)
+                {
+                    if (LHS[j, i] == 1)
+                    {
+                        numOnes += 1;
+                    }
+                    if (LHS[j, i] == 0)
+                    {
+                        numZeros += 1;
+                    }
+                }
+                if (numOnes != 1 || numZeros != LHS.RowCount - 1)
+                {
+                    nahBMatrixColumnIndices.Add(i);
+                }
+                else
+                {
+                    BMatrixColumnIndices.Add(i);
+                }
+            }
+            Matrix<double> newBMatrix = Matrix<double>.Build.Dense(LHS.RowCount, BMatrixColumnIndices.Count);
+            Matrix<double> newNahBMatrix = Matrix<double>.Build.Dense(LHS.RowCount, nahBMatrixColumnIndices.Count);
+            for (int i = 0; i < BMatrixColumnIndices.Count; i++)
+            {
+                for (int j = 0; j < LHS.RowCount; j++)
+                {
+                    newBMatrix[j, i] = LHS[j, BMatrixColumnIndices[i]];
+                }
+            }
+            for (int i = 0; i < nahBMatrixColumnIndices.Count; i++)
+            {
+                for (int j = 0; j < LHS.RowCount; j++)
+                {
+                    newNahBMatrix[j, i] = LHS[j, nahBMatrixColumnIndices[i]];
+                }
+            }
+            BMatrix = newBMatrix;
+            nahBMatrix = newNahBMatrix;
         }
     }
 }

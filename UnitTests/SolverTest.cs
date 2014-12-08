@@ -77,38 +77,31 @@ namespace UnitTests
 
             var lc1 = new LinearConstraint()
             {
-                Coefficients = new double[2] { 8, 12 },
-                Relationship = Relationship.GreaterThanOrEquals,
-                Value = 24
+                Coefficients = new double[2] { 1, 1 },
+                Relationship = Relationship.LessThanOrEquals,
+                Value = 1
             };
 
             var lc2 = new LinearConstraint()
             {
-                Coefficients = new double[2] { 12, 12 },
+                Coefficients = new double[2] { 2, -1 },
                 Relationship = Relationship.GreaterThanOrEquals,
-                Value = 36
+                Value = 1
             };
 
             var lc3 = new LinearConstraint()
             {
-                Coefficients = new double[2] { 2, 1 },
-                Relationship = Relationship.GreaterThanOrEquals,
-                Value = 4
-            };
-
-            var lc4 = new LinearConstraint()
-            {
-                Coefficients = new double[2] { 1, 1 },
+                Coefficients = new double[2] { 0, 3 },
                 Relationship = Relationship.LessThanOrEquals,
-                Value = 5
+                Value = 2
             };
 
-            var constraints = new List<LinearConstraint>() { lc1, lc2, lc3, lc4 };
+            var constraints = new List<LinearConstraint>() { lc1, lc2, lc3 };
 
             var goal = new Goal()
             {
-                Coefficients = new double[2] { .2, .3 },
-                ConstantTerm = 7
+                Coefficients = new double[2] { 6, 3 },
+                ConstantTerm = 0
             };        
 
             var model = new Model()
