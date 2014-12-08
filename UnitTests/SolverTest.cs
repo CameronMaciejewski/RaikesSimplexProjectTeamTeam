@@ -77,32 +77,38 @@ namespace UnitTests
 
             var lc1 = new LinearConstraint()
             {
-                Coefficients = new double[2] { 1, 1 },
-                Relationship = Relationship.LessThanOrEquals,
-                Value = 1
+                Coefficients = new double[2] { 8, 12 },
+                Relationship = Relationship.GreaterThanOrEquals,
+                Value = 24
             };
 
             var lc2 = new LinearConstraint()
             {
-                Coefficients = new double[2] { 2, -1 },
+                Coefficients = new double[2] { 12, 12 },
                 Relationship = Relationship.GreaterThanOrEquals,
-                //poop
-                Value = 1
+                Value = 36
             };
 
             var lc3 = new LinearConstraint()
             {
-                Coefficients = new double[2] { 0, 3 },
-                Relationship = Relationship.LessThanOrEquals,
-                Value = 2
+                Coefficients = new double[2] { 2, 1 },
+                Relationship = Relationship.GreaterThanOrEquals,
+                Value = 4
             };
 
-            var constraints = new List<LinearConstraint>() { lc1, lc2, lc3 };
+            var lc4 = new LinearConstraint()
+            {
+                Coefficients = new double[2] { 1, 1 },
+                Relationship = Relationship.LessThanOrEquals,
+                Value = 5
+            };
+
+            var constraints = new List<LinearConstraint>() { lc1, lc2, lc3, lc4 };
 
             var goal = new Goal()
             {
-                Coefficients = new double[2] { 6, 3 },
-                ConstantTerm = 0
+                Coefficients = new double[2] { .2, .3 },
+                ConstantTerm = 7
             };        
 
             var model = new Model()
@@ -120,10 +126,10 @@ namespace UnitTests
                 OptimalValue = 0.6
             };
             #endregion
-            printModelInfo(model);
-            printModelMatrix(model);
+            //printModelInfo(model);
+            //printModelMatrix(model);
             ////Act
-            //var actual = target.Solve(model);
+            var actual = target.Solve(model);
 
             ////Assert
             //CollectionAssert.AreEqual(expected.Decisions, actual.Decisions);
