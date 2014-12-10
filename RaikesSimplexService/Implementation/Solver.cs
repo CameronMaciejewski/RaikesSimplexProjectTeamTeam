@@ -25,34 +25,74 @@ namespace RaikesSimplexService.InsertTeamNameHere
         Matrix<double> Cb;
         Matrix<double>[] PMatrices;
         Matrix<double>[] PPrimeMatrices;
+        int[] basicVariables;
         double[] cPrime;
         Matrix<double> RHS;
         Matrix<double> objectiveRow;
         int[] BasicColumnIndices;
         int[] nonBasicColumnIndices;
+        SolutionQuality quality;
+        long timeOutCounter;
         public Solution Solve(Model model)
         {
+            timeOutCounter = 0;
+            quality = SolutionQuality.Optimal;
             generateInitialMatrices(model);
-            generateNewIndices();
             if (surplusVarCount != 0)
-            {
+            {                
+                generateNewIndices();
                 do
-                {
+                {                   
                     Do2Phase();
+                    if (timeOutCounter >= 10000000000)
+                    {
+                        quality = SolutionQuality.TimedOut;
+                    }
                     printAllTheThings();
-                } while (cPrimesAreNegative());
+                } while (cPrimesAreNegative() && quality == SolutionQuality.Optimal);
                 simplifyLHS();
             }
-            Console.WriteLine("LHS Matrix After 2 phase stuff");
-            Console.WriteLine(LHS.ToString());
-            generate1PhaseMatrices();
-            generateNewIndices();
-            do
+            // Default optimal value and decisions
+            double optimalValue = 0;
+            double[] decisions = new double[numVariables];
+            for (int i = 0; i < decisions.Length; i++)
             {
-                Do1Phase();
-            } while (cPrimesAreNegative());
+                decisions[i] = 0;
+            }
+            // if solution quality has already been changed
+            if (quality == SolutionQuality.Optimal)
+            {
+                Console.WriteLine("LHS Matrix After 2 phase stuff");
+                Console.WriteLine(LHS.ToString());
+                generate1PhaseMatrices();
+                do
+                {
+                    Do1Phase();
+                    if (timeOutCounter >= 10000000000)
+                    {
+                        quality = SolutionQuality.TimedOut;
+                    }
+                } while (cPrimesAreNegative() && quality == SolutionQuality.Optimal);
+                if (quality == SolutionQuality.Optimal)
+                {
+                    for (int i = 0; i < basicVariables.Length; i++)
+                    {
+                        if (basicVariables[i] < numVariables)
+                        {
+                            decisions[basicVariables[i]] = RHSPrime[i, 0];
+                        }
+                    }
+                    for (int i = 0; i < decisions.Length; i++)
+                    {
+                        optimalValue += decisions[i] * model.Goal.Coefficients[i];
+                    }
+                }             
+            }
             
-            throw new NotImplementedException();
+            
+            bool alternateSolutionsExist = false; //sorry, running out of time.            
+            Solution solution = new Solution { AlternateSolutionsExist = alternateSolutionsExist, Decisions = decisions, OptimalValue = optimalValue, Quality = quality };
+            return solution;
         }
         private void printAllTheThings()
         {
@@ -79,9 +119,15 @@ namespace RaikesSimplexService.InsertTeamNameHere
         {
             Goal goal = model.Goal;
             var constraints = model.Constraints;
+            int minMaxEditor = 1;
+            if (model.GoalKind == GoalKind.Maximize)
+            {
+                minMaxEditor = -1;
+            }
             numVariables = constraints[0].Coefficients.Length;
             surplusVarCount = 0;
             slackVarCount = 0;
+            basicVariables = new int[constraints.Count];
             for (int i = 0; i < constraints.Count; i++)
             {
                 if (constraints[i].Relationship.Equals(Relationship.LessThanOrEquals))
@@ -164,7 +210,15 @@ namespace RaikesSimplexService.InsertTeamNameHere
                         {
                             Console.Write("1\t");
                             LHS[i, k + numVariables] = 1;
-                            BMatrix[i, bMatrixBuildCounter + 1] = 1;
+                            if (surplusVarCount != 0)
+                            {
+                                BMatrix[i, bMatrixBuildCounter + 1] = 1;
+                            }
+                            else
+                            {
+                                BMatrix[i, bMatrixBuildCounter] = 1;
+                            }
+                            
                             bMatrixBuildCounter += 1;
                         }
                         else // if relationship is equal
@@ -206,17 +260,18 @@ namespace RaikesSimplexService.InsertTeamNameHere
             }
 
             // build the objective Row
-            objectiveRow = Matrix<double>.Build.Dense(1, columns, 0);
+            
 
             if (surplusVarCount != 0)
             {
+                objectiveRow = Matrix<double>.Build.Dense(1, columns, 0);
                 Console.Write("1\t");
                 LHS[constraints.Count, 0] = 1;
                 for (int i = 0; i < goal.Coefficients.Length; i++)
                 {
-                    Console.Write(goal.Coefficients[i] / -1 + "\t");
-                    LHS[constraints.Count, i + 1] = goal.Coefficients[i] / -1;
-                    nahBMatrix[constraints.Count, i] = goal.Coefficients[i] / -1;
+                    Console.Write(goal.Coefficients[i] / minMaxEditor + "\t");
+                    LHS[constraints.Count, i + 1] = goal.Coefficients[i] / minMaxEditor;
+                    nahBMatrix[constraints.Count, i] = goal.Coefficients[i] / minMaxEditor;
                 }
                 for (int i = 0; i < (surplusVarCount * 2) + slackVarCount; i++)
                 {
@@ -263,10 +318,11 @@ namespace RaikesSimplexService.InsertTeamNameHere
             }
             else
             {
+                objectiveRow = Matrix<double>.Build.Dense(1, columns -1, 0);
                 for (int i = 0; i < goal.Coefficients.Length; i++)
                 {
-                    Console.Write(goal.Coefficients[i] / -1 + "\t");
-                    objectiveRow[0, i] = goal.Coefficients[i] / -1;
+                    Console.Write(goal.Coefficients[i] / minMaxEditor + "\t");
+                    objectiveRow[0, i] = goal.Coefficients[i] / minMaxEditor;
                 }
                 for (int i = 0; i < (surplusVarCount * 2) + slackVarCount; i++)
                 {
@@ -296,20 +352,46 @@ namespace RaikesSimplexService.InsertTeamNameHere
             //loop through objective row
             int basicCounter = 0;
             int nonBasicCounter = 0;
-            for (int i = 0; i < objectiveRow.ColumnCount; i++)
+            for (int i = 0; i < LHS.ColumnCount; i++)
             {
-
-                if (objectiveRow[0, i] == 0)
+                int numOnes = 0;
+                int numZeros = 0;
+                for (int j = 0; j < LHS.RowCount; j++)
+                {
+                    if (LHS[j, i] == 1)
+                    {
+                        numOnes += 1;
+                    }
+                    if (LHS[j, i] == 0)
+                    {
+                        numZeros += 1;
+                    }
+                }
+                if (numOnes != 1 || numZeros != LHS.RowCount - 1)
+                {
+                    nonBasicColumnIndices[nonBasicCounter] = i;
+                    nonBasicCounter += 1;                   
+                }
+                else
                 {
                     BasicColumnIndices[basicCounter] = i;
                     basicCounter += 1;
                 }
-                else
-                {
-                    nonBasicColumnIndices[nonBasicCounter] = i;
-                    nonBasicCounter += 1;
-                }
             }
+            //for (int i = 0; i < LHS.ColumnCount; i++)
+            //{
+
+            //    if (objectiveRow[0, i] == 0)
+            //    {
+            //        BasicColumnIndices[basicCounter] = i;
+            //        basicCounter += 1;
+            //    }
+            //    else
+            //    {
+            //        nonBasicColumnIndices[nonBasicCounter] = i;
+            //        nonBasicCounter += 1;
+            //    }
+            //}
         }
         private void Do2Phase()
         {
@@ -334,7 +416,7 @@ namespace RaikesSimplexService.InsertTeamNameHere
             int indexOfMinCPrime = Array.IndexOf(cPrime, cPrime.Min());
             int smallestRatioIndex = getSmallestRatio(RHSPrime, PPrimeMatrices[indexOfMinCPrime]);
             swapColumns(indexOfMinCPrime, smallestRatioIndex);
-
+            timeOutCounter += 1;
         }
         private Boolean cPrimesAreNegative()
         {
@@ -359,6 +441,10 @@ namespace RaikesSimplexService.InsertTeamNameHere
                     minRatio = ratio;
                     minIndex = i;
                 }
+            }
+            if (minRatio == 10000000000000000000)
+            {
+                quality = SolutionQuality.Unbounded;
             }
             return minIndex;
         }
@@ -388,21 +474,54 @@ namespace RaikesSimplexService.InsertTeamNameHere
             int tempIndex;
             tempIndex = BasicColumnIndices[leavingBIndex];
             BasicColumnIndices[leavingBIndex] = nonBasicColumnIndices[enteringNahBIndex];
-            nonBasicColumnIndices[enteringNahBIndex] = tempIndex;
-
+            nonBasicColumnIndices[enteringNahBIndex] = tempIndex;           
         }
         private void simplifyLHS()
         {
             LHS = Binv * LHS;
+            for ( int i = 0; i < LHS.ColumnCount; i++)
+            {
+                int onesCounter = 0;
+                int zerosCounter = 0;
+                for (int j = 0; j < LHS.RowCount; j++ )
+                {
+                    if (LHS[j, i] < .00001 && LHS[j, i] > -0.00001)
+                    {
+                        LHS[j, i] = 0;
+                    }
+                    LHS[j, i] = Math.Round(LHS[j, i], 6);
+                    //check for infeasable
+                    if (LHS[j, i] == 0)
+                    {
+                        zerosCounter += 1;
+                    }
+                    if (LHS[j,i] == 1)
+                    {
+                        onesCounter += 1;
+                    }
+
+                }
+                // check for infeasable
+                if (i >= LHS.ColumnCount - surplusVarCount)
+                {
+                    if (onesCounter == 1 && zerosCounter == LHS.RowCount - 1)
+                    {
+                        quality = SolutionQuality.Infeasible;
+                    }
+                }
+                
+            }
+            Console.WriteLine(LHS.ToString());
             int originalColumnCount = LHS.ColumnCount;
             for (int i = originalColumnCount; i > originalColumnCount - surplusVarCount; i-- )
             {
                 LHS = LHS.RemoveColumn(i - 1);
             }
-            LHS = LHS.RemoveColumn(0);
+            
             RHS = Binv * RHS;
             Console.WriteLine(LHS.Row(0).ToString());
             objectiveRow = LHS.Row(0).ToRowMatrix();
+            objectiveRow = objectiveRow.RemoveColumn(0);
             LHS = LHS.RemoveRow(0);
             RHS = RHS.RemoveRow(0);
         }
@@ -429,10 +548,17 @@ namespace RaikesSimplexService.InsertTeamNameHere
             RHSPrime = Binv * RHS;
             int indexOfMinCPrime = Array.IndexOf(cPrime, cPrime.Min());
             int smallestRatioIndex = getSmallestRatio(RHSPrime, PPrimeMatrices[indexOfMinCPrime]);
+            if (cPrimesAreNegative())
+            {
+                basicVariables[smallestRatioIndex] = nonBasicColumnIndices[indexOfMinCPrime];
+            }
             swapColumns(indexOfMinCPrime, smallestRatioIndex);
+            timeOutCounter += 1;
+
         }
         private void generate1PhaseMatrices()
         {
+            LHS = LHS.RemoveColumn(0);
             List<int> BMatrixColumnIndices = new List<int>();
             List<int> nahBMatrixColumnIndices = new List<int>();
             for (int i = 0; i < LHS.ColumnCount; i++)
@@ -459,6 +585,8 @@ namespace RaikesSimplexService.InsertTeamNameHere
                     BMatrixColumnIndices.Add(i);
                 }
             }
+            BasicColumnIndices = new int[BMatrixColumnIndices.Count];
+            nonBasicColumnIndices = new int[nahBMatrixColumnIndices.Count];
             Matrix<double> newBMatrix = Matrix<double>.Build.Dense(LHS.RowCount, BMatrixColumnIndices.Count);
             Matrix<double> newNahBMatrix = Matrix<double>.Build.Dense(LHS.RowCount, nahBMatrixColumnIndices.Count);
             for (int i = 0; i < BMatrixColumnIndices.Count; i++)
@@ -467,6 +595,8 @@ namespace RaikesSimplexService.InsertTeamNameHere
                 {
                     newBMatrix[j, i] = LHS[j, BMatrixColumnIndices[i]];
                 }
+                basicVariables[i] = BMatrixColumnIndices[i];
+                BasicColumnIndices[i] = BMatrixColumnIndices[i];
             }
             for (int i = 0; i < nahBMatrixColumnIndices.Count; i++)
             {
@@ -474,6 +604,7 @@ namespace RaikesSimplexService.InsertTeamNameHere
                 {
                     newNahBMatrix[j, i] = LHS[j, nahBMatrixColumnIndices[i]];
                 }
+                nonBasicColumnIndices[i] = nahBMatrixColumnIndices[i];
             }
             BMatrix = newBMatrix;
             nahBMatrix = newNahBMatrix;
